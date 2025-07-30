@@ -19,4 +19,5 @@ return [
     Twig\Extra\TwigExtraBundle\TwigExtraBundle::class => ['all' => true],
     KevinPapst\TablerBundle\TablerBundle::class => ['all' => true],
     Scheb\TwoFactorBundle\SchebTwoFactorBundle::class => ['all' => true],
+    App\Plugin\GarageManagementBundle\GarageManagementBundle::class => ['all' => true],
 ];

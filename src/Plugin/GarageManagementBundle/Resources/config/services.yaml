@@ -1,0 +1,18 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    # Auto-register all services in this bundle
+    App\Plugin\GarageManagementBundle\:
+        resource: '../../'
+        exclude: '../../{Entity,DependencyInjection}'
+
+    # Garage workflow service
+    App\Plugin\GarageManagementBundle\Service\GarageWorkflowService:
+        tags: ['garage_management.service']
+
+    # Garage report service
+    App\Plugin\GarageManagementBundle\Service\GarageReportService:
+        tags: ['garage_management.service']

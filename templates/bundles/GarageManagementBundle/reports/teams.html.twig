@@ -1,0 +1,236 @@
+{% extends 'base.html.twig' %}
+{% import "macros/widgets.html.twig" as widgets %}
+
+{% block page_title %}Báo cáo Hiệu quả Team{% endblock %}
+{% block page_search %}{% endblock %}
+
+{% block main %}
+    <!-- Filter Period -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Từ ngày:</label>
+                            <input type="date" id="fromDate" class="form-control" value="{{ period_from|date('Y-m-d') }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Đến ngày:</label>
+                            <input type="date" id="toDate" class="form-control" value="{{ period_to|date('Y-m-d') }}">
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="button" class="btn btn-primary me-2" onclick="updatePeriod()">
+                                <i class="fas fa-sync"></i> Cập nhật
+                            </button>
+                            <a href="{{ path('garage_reports_dashboard', {from: period_from|date('Y-m-d'), to: period_to|date('Y-m-d')}) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-2-4 col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="fs-3 text-primary mb-2">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <h6 class="text-muted">Tổng Doanh thu</h6>
+                    <h4 class="mb-0">{{ total_revenue|number_format(0, '.', ',') }} VNĐ</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2-4 col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="fs-3 text-success mb-2">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h6 class="text-muted">Tổng Lợi nhuận Gộp</h6>
+                    <h4 class="mb-0">{{ total_gross_profit|number_format(0, '.', ',') }} VNĐ</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2-4 col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="fs-3 text-warning mb-2">
+                        <i class="fas fa-balance-scale"></i>
+                    </div>
+                    <h6 class="text-muted">Tổng Chi phí Gián tiếp</h6>
+                    <h4 class="mb-0">{{ total_indirect_costs|number_format(0, '.', ',') }} VNĐ</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2-4 col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="fs-3 text-info mb-2">
+                        <i class="fas fa-trophy"></i>
+                    </div>
+                    <h6 class="text-muted">Tổng Lợi nhuận Ròng</h6>
+                    <h4 class="mb-0{% if total_net_profit < 0 %} text-danger{% endif %}">{{ total_net_profit|number_format(0, '.', ',') }} VNĐ</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2-4 col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="fs-3 text-secondary mb-2">
+                        <i class="fas fa-project-diagram"></i>
+                    </div>
+                    <h6 class="text-muted">Tổng số Đơn hàng</h6>
+                    <h4 class="mb-0">{{ total_projects_count }}</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teams Table -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-users"></i>
+                Chi tiết theo Team ({{ teams_data|length }} team)
+            </h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th class="text-end d-none d-lg-table-cell">Doanh thu</th>
+                        <th class="text-end d-none d-md-table-cell">Lợi nhuận Gộp</th>
+                        <th class="text-end d-none d-sm-table-cell">Chi phí Gián tiếp</th>
+                        <th class="text-end">Lợi nhuận Ròng</th>
+                        <th class="text-center d-none d-lg-table-cell">Số đơn</th>
+                        <th class="text-end d-none d-xl-table-cell">TB/Thành viên</th>
+                        <th class="text-end d-none d-xl-table-cell">TB/Đơn hàng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for team in teams_data %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        {% if team.total_net_profit >= 0 %}
+                                            <i class="fas fa-arrow-up text-success"></i>
+                                        {% else %}
+                                            <i class="fas fa-arrow-down text-danger"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <strong>{{ team.team_name }}</strong>
+                                        <div class="small text-muted">{{ team.members_count }} thành viên</div>
+                                        <div class="d-md-none small text-muted mt-1">
+                                            LN Gộp: {{ team.total_gross_profit|number_format(0, '.', ',') }} VNĐ<br>
+                                            {{ team.total_projects_count }} đơn hàng
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-end d-none d-lg-table-cell">
+                                {{ team.total_revenue|number_format(0, '.', ',') }}
+                                <small class="text-muted d-block">VNĐ</small>
+                            </td>
+                            <td class="text-end d-none d-md-table-cell">
+                                {{ team.total_gross_profit|number_format(0, '.', ',') }}
+                                <small class="text-muted d-block">VNĐ</small>
+                            </td>
+                            <td class="text-end d-none d-sm-table-cell">
+                                {{ team.total_indirect_costs|number_format(0, '.', ',') }}
+                                <small class="text-muted d-block">VNĐ</small>
+                            </td>
+                            <td class="text-end">
+                                <strong class="{% if team.total_net_profit < 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ team.total_net_profit|number_format(0, '.', ',') }}
+                                </strong>
+                                <small class="text-muted d-block">VNĐ</small>
+                            </td>
+                            <td class="text-center d-none d-lg-table-cell">
+                                <span class="badge bg-secondary">{{ team.total_projects_count }}</span>
+                            </td>
+                            <td class="text-end d-none d-xl-table-cell">
+                                <span class="{% if team.average_net_profit_per_member < 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ team.average_net_profit_per_member|number_format(0, '.', ',') }}
+                                </span>
+                                <small class="text-muted d-block">VNĐ/NV</small>
+                            </td>
+                            <td class="text-end d-none d-xl-table-cell">
+                                <span class="{% if team.average_net_profit_per_project < 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ team.average_net_profit_per_project|number_format(0, '.', ',') }}
+                                </span>
+                                <small class="text-muted d-block">VNĐ/đơn</small>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-3x mb-3"></i><br>
+                                Không có team nào có hoạt động trong khoảng thời gian này.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                {% if teams_data %}
+                    <tfoot class="table-secondary">
+                        <tr>
+                            <th>Tổng cộng ({{ teams_data|length }} team)</th>
+                            <th class="text-end d-none d-lg-table-cell">
+                                <strong>{{ total_revenue|number_format(0, '.', ',') }}</strong>
+                                <small class="text-muted d-block">VNĐ</small>
+                            </th>
+                            <th class="text-end d-none d-md-table-cell">
+                                <strong>{{ total_gross_profit|number_format(0, '.', ',') }}</strong>
+                                <small class="text-muted d-block">VNĐ</small>
+                            </th>
+                            <th class="text-end d-none d-sm-table-cell">
+                                <strong>{{ total_indirect_costs|number_format(0, '.', ',') }}</strong>
+                                <small class="text-muted d-block">VNĐ</small>
+                            </th>
+                            <th class="text-end">
+                                <strong class="{% if total_net_profit < 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ total_net_profit|number_format(0, '.', ',') }}
+                                </strong>
+                                <small class="text-muted d-block">VNĐ</small>
+                            </th>
+                            <th class="text-center d-none d-lg-table-cell">
+                                <span class="badge bg-info fs-6">{{ total_projects_count }}</span>
+                            </th>
+                            <th class="text-end d-none d-xl-table-cell">
+                                {% set total_members = teams_data|map(t => t.members_count)|reduce((a, b) => a + b) %}
+                                <strong>{{ total_members > 0 ? (total_net_profit / total_members)|number_format(0, '.', ',') : '0' }}</strong>
+                                <small class="text-muted d-block">VNĐ/NV</small>
+                            </th>
+                            <th class="text-end d-none d-xl-table-cell">
+                                <strong>{{ total_projects_count > 0 ? (total_net_profit / total_projects_count)|number_format(0, '.', ',') : '0' }}</strong>
+                                <small class="text-muted d-block">VNĐ/đơn</small>
+                            </th>
+                        </tr>
+                    </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        function updatePeriod() {
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+            
+            if (fromDate && toDate) {
+                window.location.href = '{{ path('garage_reports_teams') }}?from=' + fromDate + '&to=' + toDate;
+            }
+        }
+    </script>
+{% endblock %}

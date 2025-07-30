@@ -1,0 +1,254 @@
+{% embed '@theme/embeds/card.html.twig' %}
+    {% block box_attributes %}id="garage_cogs_box"{% endblock %}
+    {% block box_title %}
+        <i class="fas fa-money-bill-wave"></i>
+        Chi phí Vật tư (COGS)
+        <small class="text-muted ms-2">
+            (Tổng: {{ total_cogs|number_format(0, '.', ',') }} VNĐ)
+        </small>
+    {% endblock %}
+    {% block box_tools %}
+        <button type="button" class="btn btn-sm btn-success" id="add-cogs-btn">
+            <i class="fas fa-plus"></i> Thêm COGS
+        </button>
+    {% endblock %}
+    {% block box_body_class %}p-0{% endblock %}
+    {% block box_body %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="cogs-table">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 150px;">Loại COGS</th>
+                        <th>Mô tả</th>
+                        <th style="width: 150px;">Số tiền (VNĐ)</th>
+                        <th style="width: 100px;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cogs in cogs_items %}
+                        <tr data-cogs-id="{{ cogs.id }}">
+                            <td>
+                                <select class="form-select form-select-sm cogs-type" disabled>
+                                    {% for type in cogs_types %}
+                                        <option value="{{ type }}" {{ cogs.cogsType == type ? 'selected' : '' }}>
+                                            {{ type }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" 
+                                       class="form-control form-control-sm cogs-description" 
+                                       value="{{ cogs.description }}" 
+                                       disabled>
+                            </td>
+                            <td>
+                                <input type="number" 
+                                       class="form-control form-control-sm cogs-amount" 
+                                       value="{{ cogs.amount }}" 
+                                       min="0" 
+                                       step="1000" 
+                                       disabled>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-primary edit-cogs-btn">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger delete-cogs-btn">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <td colspan="2"><strong>Tổng chi phí COGS:</strong></td>
+                        <td><strong id="total-cogs-display">{{ total_cogs|number_format(0, '.', ',') }} VNĐ</strong></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        {% if cogs_items|length == 0 %}
+            <div class="text-center py-4">
+                <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i><br>
+                <p class="text-muted">Chưa có chi phí COGS nào được ghi nhận cho dự án này.</p>
+                <button type="button" class="btn btn-success" id="add-first-cogs-btn">
+                    <i class="fas fa-plus"></i> Thêm COGS đầu tiên
+                </button>
+            </div>
+        {% endif %}
+    {% endblock %}
+{% endembed %}
+
+<!-- Add COGS Modal -->
+<div class="modal fade" id="cogsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Thêm Chi phí COGS</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="cogs-form">
+                <div class="modal-body">
+                    <input type="hidden" id="cogs-id" name="cogs_id">
+                    <input type="hidden" id="project-id" name="project_id" value="{{ project.id }}">
+                    
+                    <div class="mb-3">
+                        <label for="cogs-type-select" class="form-label">Loại COGS</label>
+                        <select class="form-select" id="cogs-type-select" name="cogs_type" required>
+                            {% for type in cogs_types %}
+                                <option value="{{ type }}">{{ type }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cogs-description-input" class="form-label">Mô tả</label>
+                        <input type="text" class="form-control" id="cogs-description-input" name="description" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cogs-amount-input" class="form-label">Số tiền (VNĐ)</label>
+                        <input type="number" class="form-control" id="cogs-amount-input" name="amount" min="0" step="1000" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-success">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function() {
+    const cogsModal = new bootstrap.Modal(document.getElementById('cogsModal'));
+    const cogsForm = document.getElementById('cogs-form');
+    const cogsTable = document.getElementById('cogs-table');
+    const totalDisplay = document.getElementById('total-cogs-display');
+
+    function showToast(message, type = 'success') {
+        if (typeof kimai !== 'undefined' && kimai.getPlugin) {
+            const alert = kimai.getPlugin('alert');
+            if (type === 'success') {
+                alert.success(message);
+            } else {
+                alert.error(message);
+            }
+        } else {
+            alert(message);
+        }
+    }
+
+    function updateTotal() {
+        let total = 0;
+        document.querySelectorAll('.cogs-amount').forEach(input => {
+            total += parseFloat(input.value) || 0;
+        });
+        totalDisplay.textContent = total.toLocaleString('vi-VN') + ' VNĐ';
+    }
+
+    // Add COGS
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('#add-cogs-btn, #add-first-cogs-btn')) {
+            document.getElementById('cogs-id').value = '';
+            cogsForm.reset();
+            document.getElementById('project-id').value = '{{ project.id }}';
+            cogsModal.show();
+        }
+    });
+
+    // Edit COGS
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.edit-cogs-btn')) {
+            const row = e.target.closest('tr');
+            const cogsId = row.getAttribute('data-cogs-id');
+            
+            document.getElementById('cogs-id').value = cogsId;
+            document.getElementById('cogs-type-select').value = row.querySelector('.cogs-type').value;
+            document.getElementById('cogs-description-input').value = row.querySelector('.cogs-description').value;
+            document.getElementById('cogs-amount-input').value = row.querySelector('.cogs-amount').value;
+            
+            cogsModal.show();
+        }
+    });
+
+    // Delete COGS
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.delete-cogs-btn')) {
+            if (!confirm('Bạn có chắc chắn muốn xóa chi phí COGS này?')) return;
+            
+            const row = e.target.closest('tr');
+            const cogsId = row.getAttribute('data-cogs-id');
+            
+            fetch(`/ajax/garage/cogs/${cogsId}/delete`, {
+                method: 'DELETE',
+                headers: {'X-Requested-With': 'XMLHttpRequest'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    row.remove();
+                    updateTotal();
+                    showToast(data.message);
+                } else {
+                    showToast(data.message || 'Có lỗi xảy ra', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Có lỗi xảy ra khi xóa', 'error');
+            });
+        }
+    });
+
+    // Submit form
+    cogsForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const cogsId = document.getElementById('cogs-id').value;
+        const isEdit = cogsId !== '';
+        
+        const url = isEdit ? `/ajax/garage/cogs/${cogsId}/update` : '/ajax/garage/cogs/add';
+        
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                cogsModal.hide();
+                showToast(data.message);
+                
+                if (isEdit) {
+                    // Update existing row
+                    const row = document.querySelector(`tr[data-cogs-id="${cogsId}"]`);
+                    if (row) {
+                        row.querySelector('.cogs-type').value = data.cogs.cogs_type;
+                        row.querySelector('.cogs-description').value = data.cogs.description;
+                        row.querySelector('.cogs-amount').value = data.cogs.amount;
+                    }
+                } else {
+                    // Reload page to add new row
+                    location.reload();
+                }
+                
+                updateTotal();
+            } else {
+                showToast(data.message || 'Có lỗi xảy ra', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Có lỗi xảy ra', 'error');
+        });
+    });
+});
+</script>

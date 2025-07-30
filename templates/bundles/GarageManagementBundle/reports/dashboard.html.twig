@@ -1,0 +1,240 @@
+{% extends 'base.html.twig' %}
+{% import "macros/widgets.html.twig" as widgets %}
+
+{% block page_title %}Dashboard P&L Garage{% endblock %}
+{% block page_search %}{% endblock %}
+
+{% block main %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Từ ngày:</label>
+                            <input type="date" id="fromDate" class="form-control" value="{{ period_from|date('Y-m-d') }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Đến ngày:</label>
+                            <input type="date" id="toDate" class="form-control" value="{{ period_to|date('Y-m-d') }}">
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <button type="button" class="btn btn-primary" onclick="updatePeriod()">
+                                <i class="fas fa-sync"></i> Cập nhật
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tổng quan KPI -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="fs-3 text-primary">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="text-muted">Tổng Doanh thu</div>
+                            <div class="fs-3 fw-bold">{{ total_revenue|number_format(0, '.', ',') }} VNĐ</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="fs-3 text-success">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="text-muted">Lợi nhuận Gộp</div>
+                            <div class="fs-3 fw-bold">{{ total_gross_profit|number_format(0, '.', ',') }} VNĐ</div>
+                            <div class="text-muted small">Tỷ suất: {{ overall_gross_margin|number_format(1) }}%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="fs-3 text-info">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="text-muted">Lợi nhuận Ròng</div>
+                            <div class="fs-3 fw-bold{% if total_net_profit < 0 %} text-danger{% endif %}">{{ total_net_profit|number_format(0, '.', ',') }} VNĐ</div>
+                            <div class="text-muted small">Hiệu quả: {{ overall_efficiency|number_format(1) }}%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-sm-6">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="fs-3 text-warning">
+                            <i class="fas fa-project-diagram"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="text-muted">Tổng Đơn hàng</div>
+                            <div class="fs-3 fw-bold">{{ projects_count }}</div>
+                            <div class="text-muted small">{{ teams_count }} Team, {{ users_count }} NV</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Performers -->
+    <div class="row">
+        <!-- Top Projects -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">
+                        <i class="fas fa-trophy text-warning"></i>
+                        Top 5 Đơn hàng
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if top_projects %}
+                        {% for project in top_projects %}
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                                <div>
+                                    <div class="fw-bold">{{ project.project_name|slice(0, 25) }}{% if project.project_name|length > 25 %}...{% endif %}</div>
+                                    <small class="text-muted">Margin: {{ project.gross_margin_percent|number_format(1) }}%</small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold{% if project.gross_profit < 0 %} text-danger{% else %} text-success{% endif %}">
+                                        {{ project.gross_profit|number_format(0, '.', ',') }}
+                                    </div>
+                                    <small class="text-muted">VNĐ</small>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                            Chưa có dữ liệu
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="{{ path('garage_reports_projects', {from: period_from|date('Y-m-d'), to: period_to|date('Y-m-d')}) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-eye"></i> Xem tất cả
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Users -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">
+                        <i class="fas fa-medal text-gold"></i>
+                        Top 5 Nhân viên
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if top_users %}
+                        {% for user in top_users %}
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                                <div>
+                                    <div class="fw-bold">{{ user.user_name }}</div>
+                                    <small class="text-muted">Hiệu quả: {{ user.net_efficiency|number_format(1) }}%</small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold{% if user.net_profit < 0 %} text-danger{% else %} text-success{% endif %}">
+                                        {{ user.net_profit|number_format(0, '.', ',') }}
+                                    </div>
+                                    <small class="text-muted">VNĐ</small>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                            Chưa có dữ liệu
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="{{ path('garage_reports_users', {from: period_from|date('Y-m-d'), to: period_to|date('Y-m-d')}) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-eye"></i> Xem tất cả
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Teams -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">
+                        <i class="fas fa-users text-info"></i>
+                        Top 5 Team
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if top_teams %}
+                        {% for team in top_teams %}
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                                <div>
+                                    <div class="fw-bold">{{ team.team_name }}</div>
+                                    <small class="text-muted">{{ team.members_count }} thành viên, {{ team.total_projects_count }} đơn</small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold{% if team.total_net_profit < 0 %} text-danger{% else %} text-success{% endif %}">
+                                        {{ team.total_net_profit|number_format(0, '.', ',') }}
+                                    </div>
+                                    <small class="text-muted">VNĐ</small>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                            Chưa có dữ liệu
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="{{ path('garage_reports_teams', {from: period_from|date('Y-m-d'), to: period_to|date('Y-m-d')}) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-eye"></i> Xem tất cả
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        function updatePeriod() {
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+            
+            if (fromDate && toDate) {
+                window.location.href = '{{ path('garage_reports_dashboard') }}?from=' + fromDate + '&to=' + toDate;
+            }
+        }
+    </script>
+{% endblock %}

@@ -53,3 +53,10 @@ homeLocale:
 
 2fa_login_check:
     path: /{_locale}/auth/2fa_check
+
+# Garage Management Bundle Routes
+garage_management:
+    resource: '../src/Plugin/GarageManagementBundle/Resources/config/routes.yaml'
+    prefix: /{_locale}
+    defaults:
+        _locale: '%locale%'

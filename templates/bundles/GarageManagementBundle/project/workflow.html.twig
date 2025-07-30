@@ -1,0 +1,218 @@
+{% embed '@theme/embeds/card.html.twig' %}
+    {% block box_attributes %}id="garage_workflow_box"{% endblock %}
+    {% block box_title %}
+        <i class="fas fa-tasks"></i>
+        Tiến độ Dịch vụ
+        <small class="text-muted ms-2">
+            ({{ completion_percentage|number_format(1) }}% hoàn thành)
+        </small>
+    {% endblock %}
+    {% block box_body_class %}p-0{% endblock %}
+    {% block box_body %}
+        <div class="progress mb-3 mx-3 mt-3" style="height: 20px;">
+            <div class="progress-bar bg-success" 
+                 id="completion-progress-bar"
+                 role="progressbar" 
+                 style="width: {{ completion_percentage }}%" 
+                 aria-valuenow="{{ completion_percentage }}" 
+                 aria-valuemin="0" 
+                 aria-valuemax="100">
+                {{ completion_percentage|number_format(1) }}%
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="workflow-table">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40px;">#</th>
+                        <th style="width: 200px;">Công đoạn</th>
+                        <th style="width: 150px;">Trạng thái</th>
+                        <th style="width: 140px;">Thời gian bắt đầu</th>
+                        <th style="width: 140px;">Thời gian kết thúc</th>
+                        <th style="width: 150px;">Người phụ tr책</th>
+                        <th>Ghi chú</th>
+                        <th style="width: 80px;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for workflow in workflows %}
+                        <tr data-workflow-id="{{ workflow.id }}" class="workflow-row">
+                            <td class="text-center">
+                                <span class="badge badge-outline">{{ loop.index }}</span>
+                            </td>
+                            <td>
+                                <strong>{{ workflow.stageName }}</strong><br>
+                                <small class="text-muted">{{ workflow.stageKey }}</small>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm workflow-status" 
+                                        data-field="status" 
+                                        data-workflow-id="{{ workflow.id }}">
+                                    {% for status in statuses %}
+                                        <option value="{{ status }}" {{ workflow.status == status ? 'selected' : '' }}>
+                                            {{ status }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="datetime-local" 
+                                       class="form-control form-control-sm workflow-datetime" 
+                                       data-field="start_time"
+                                       data-workflow-id="{{ workflow.id }}"
+                                       value="{{ workflow.startTime ? workflow.startTime|date('Y-m-d\\TH:i') : '' }}">
+                            </td>
+                            <td>
+                                <input type="datetime-local" 
+                                       class="form-control form-control-sm workflow-datetime" 
+                                       data-field="end_time"
+                                       data-workflow-id="{{ workflow.id }}"
+                                       value="{{ workflow.endTime ? workflow.endTime|date('Y-m-d\\TH:i') : '' }}">
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm workflow-user" 
+                                        data-field="responsible_user_id" 
+                                        data-workflow-id="{{ workflow.id }}">
+                                    <option value="">-- Chọn người --</option>
+                                    {% for user in users %}
+                                        <option value="{{ user.id }}" 
+                                                {{ workflow.responsibleUser and workflow.responsibleUser.id == user.id ? 'selected' : '' }}>
+                                            {{ user.displayName }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <textarea class="form-control form-control-sm workflow-notes" 
+                                          data-field="notes"
+                                          data-workflow-id="{{ workflow.id }}"
+                                          rows="2" 
+                                          placeholder="Ghi chú...">{{ workflow.notes }}</textarea>
+                            </td>
+                            <td class="text-center">
+                                <button type="button" 
+                                        class="btn btn-sm btn-success save-workflow-btn" 
+                                        data-workflow-id="{{ workflow.id }}"
+                                        title="Lưu thay đổi">
+                                    <i class="fas fa-save"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if workflows|length == 0 %}
+            <div class="text-center py-4">
+                <i class="fas fa-tasks fa-3x text-muted mb-3"></i><br>
+                <p class="text-muted">Chưa có quy trình workflow nào được tạo cho dự án này.</p>
+            </div>
+        {% endif %}
+    {% endblock %}
+{% endembed %}
+
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function() {
+    const saveButtons = document.querySelectorAll('.save-workflow-btn');
+    const progressBar = document.getElementById('completion-progress-bar');
+
+    function showToast(message, type = 'success') {
+        // Use Kimai's built-in toast system if available
+        if (typeof kimai !== 'undefined' && kimai.getPlugin) {
+            const alert = kimai.getPlugin('alert');
+            if (type === 'success') {
+                alert.success(message);
+            } else {
+                alert.error(message);
+            }
+        } else {
+            alert(message);
+        }
+    }
+
+    function updateProgressBar(percentage) {
+        if (progressBar) {
+            progressBar.style.width = percentage + '%';
+            progressBar.setAttribute('aria-valuenow', percentage);
+            progressBar.textContent = percentage.toFixed(1) + '%';
+        }
+    }
+
+    function getStatusColor(status) {
+        switch(status) {
+            case 'Hoàn thành': return 'success';
+            case 'Đang thực hiện': return 'primary';
+            case 'Tạm dừng': return 'warning';
+            default: return 'secondary';
+        }
+    }
+
+    saveButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const workflowId = this.getAttribute('data-workflow-id');
+            const row = document.querySelector(`tr[data-workflow-id="${workflowId}"]`);
+            
+            if (!row) return;
+
+            // Gather form data
+            const formData = new FormData();
+            
+            const statusSelect = row.querySelector('.workflow-status');
+            const startTimeInput = row.querySelector('[data-field="start_time"]');
+            const endTimeInput = row.querySelector('[data-field="end_time"]');
+            const userSelect = row.querySelector('.workflow-user');
+            const notesTextarea = row.querySelector('.workflow-notes');
+
+            formData.append('status', statusSelect.value);
+            formData.append('start_time', startTimeInput.value);
+            formData.append('end_time', endTimeInput.value);
+            formData.append('responsible_user_id', userSelect.value);
+            formData.append('notes', notesTextarea.value);
+
+            // Disable button during request
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            // Send AJAX request
+            fetch(`/ajax/garage/workflow/${workflowId}/update`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message);
+                    
+                    // Update progress bar
+                    if (data.completion_percentage !== undefined) {
+                        updateProgressBar(data.completion_percentage);
+                    }
+
+                    // Add visual feedback
+                    row.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        row.style.backgroundColor = '';
+                    }, 2000);
+
+                } else {
+                    showToast(data.message || 'Có lỗi xảy ra', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Có lỗi xảy ra khi cập nhật', 'error');
+            })
+            .finally(() => {
+                // Re-enable button
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-save"></i>';
+            });
+        });
+    });
+});
+</script>

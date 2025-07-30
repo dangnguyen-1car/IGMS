@@ -1,0 +1,306 @@
+{% extends 'base.html.twig' %}
+
+{% block page_title %}{{ isEdit ? 'Chỉnh sửa Chi phí' : 'Thêm Chi phí mới' }}{% endblock %}
+{% block page_search %}{% endblock %}
+
+{% block main %}
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-{{ isEdit ? 'edit' : 'plus' }}"></i>
+                        {{ isEdit ? 'Chỉnh sửa Chi phí' : 'Thêm Chi phí mới' }}
+                    </h3>
+                </div>
+
+                <form method="post" id="costForm">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Tên Chi phí <span class="text-danger">*</span></label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="name" 
+                                           name="name" 
+                                           value="{{ costItem.name ?? '' }}" 
+                                           required>
+                                    <div class="form-text">Ví dụ: Tiền thuê mặt bằng tháng 12/2024</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="amount" class="form-label">Số tiền (VNĐ) <span class="text-danger">*</span></label>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="amount" 
+                                           name="amount" 
+                                           value="{{ costItem.amount ?? '' }}" 
+                                           min="0" 
+                                           step="1000" 
+                                           required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="category" class="form-label">Danh mục <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="category" name="category" required>
+                                        <option value="">-- Chọn danh mục --</option>
+                                        {% for key, label in categories %}
+                                            <option value="{{ key }}" {{ costItem.category == key ? 'selected' : '' }}>
+                                                {{ label }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="status" class="form-label">Trạng thái <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="status" name="status" required>
+                                        {% for key, label in statuses %}
+                                            <option value="{{ key }}" {{ costItem.status == key ? 'selected' : '' }}>
+                                                {{ label }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">
+                                        <strong>Dự toán:</strong> Số liệu ước tính đầu tháng<br>
+                                        <strong>Thực tế:</strong> Số liệu chính xác cuối tháng
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="entry_date" class="form-label">Ngày ghi nhận <span class="text-danger">*</span></label>
+                                    <input type="date" 
+                                           class="form-control" 
+                                           id="entry_date" 
+                                           name="entry_date" 
+                                           value="{{ costItem.entryDate ? costItem.entryDate|date('Y-m-d') : 'now'|date('Y-m-d') }}" 
+                                           required>
+                                    <div class="form-text">Ngày này sẽ xác định tháng của chi phí</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <h5 class="mb-3">
+                            <i class="fas fa-users"></i>
+                            Phân bổ Chi phí theo Team
+                        </h5>
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Nhập tỷ lệ % phân bổ cho từng Team. Tổng tỷ lệ phải bằng 100%.
+                        </div>
+
+                        <div class="row" id="allocations-container">
+                            {% for team in teams %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="card">
+                                        <div class="card-body p-3">
+                                            <h6 class="card-title mb-2">
+                                                <i class="fas fa-user-friends"></i>
+                                                {{ team.name }}
+                                            </h6>
+                                            <div class="input-group">
+                                                <input type="number" 
+                                                       class="form-control allocation-input" 
+                                                       id="allocation_{{ team.id }}" 
+                                                       name="allocations[{{ team.id }}]" 
+                                                       value="{{ allocations[team.id] ?? '' }}" 
+                                                       min="0" 
+                                                       max="100" 
+                                                       step="0.01" 
+                                                       placeholder="0">
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="alert alert-secondary" id="allocation-summary">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Tổng phân bổ:</strong>
+                                    <span id="total-percentage" class="text-primary">0.00</span>%
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Còn lại:</strong>
+                                    <span id="remaining-percentage" class="text-warning">100.00</span>%
+                                </div>
+                            </div>
+                            <div class="progress mt-2" style="height: 8px;">
+                                <div class="progress-bar" 
+                                     id="allocation-progress" 
+                                     role="progressbar" 
+                                     style="width: 0%" 
+                                     aria-valuenow="0" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-footer">
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ path('garage_costs_index') }}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i>
+                                Hủy bỏ
+                            </a>
+                            <button type="submit" class="btn btn-success" id="submit-btn">
+                                <i class="fas fa-save"></i>
+                                {{ isEdit ? 'Cập nhật' : 'Tạo mới' }}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-question-circle"></i>
+                        Hướng dẫn
+                    </h5>
+                    
+                    <h6 class="mt-3">Danh mục Chi phí:</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>Chi phí Bán hàng:</strong> Marketing, hoa hồng, CSKH</li>
+                        <li><strong>Chi phí G&A:</strong> Thuê MB, điện nước, lương gián tiếp</li>
+                        <li><strong>Chi phí Tài chính:</strong> Lãi vay ngân hàng</li>
+                        <li><strong>Thuế TNDN:</strong> Thuế thu nhập doanh nghiệp</li>
+                    </ul>
+
+                    <h6 class="mt-3">Quy trình:</h6>
+                    <ol>
+                        <li><strong>Đầu tháng:</strong> Tạo chi phí với trạng thái "Dự toán"</li>
+                        <li><strong>Cuối tháng:</strong> Cập nhật thành "Thực tế" với số chính xác</li>
+                    </ol>
+
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Lưu ý:</strong> Tổng tỷ lệ phân bổ phải bằng 100% để có thể lưu.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const allocationInputs = document.querySelectorAll('.allocation-input');
+            const totalPercentageSpan = document.getElementById('total-percentage');
+            const remainingPercentageSpan = document.getElementById('remaining-percentage');
+            const progressBar = document.getElementById('allocation-progress');
+            const submitBtn = document.getElementById('submit-btn');
+            const form = document.getElementById('costForm');
+
+            function updateAllocationSummary() {
+                let total = 0;
+                
+                allocationInputs.forEach(input => {
+                    const value = parseFloat(input.value) || 0;
+                    total += value;
+                });
+
+                const remaining = 100 - total;
+                
+                totalPercentageSpan.textContent = total.toFixed(2);
+                remainingPercentageSpan.textContent = remaining.toFixed(2);
+                
+                progressBar.style.width = total + '%';
+                progressBar.setAttribute('aria-valuenow', total);
+                
+                // Update colors based on total
+                if (total === 100) {
+                    progressBar.className = 'progress-bar bg-success';
+                    totalPercentageSpan.className = 'text-success';
+                    remainingPercentageSpan.className = 'text-success';
+                    submitBtn.disabled = false;
+                } else if (total > 100) {
+                    progressBar.className = 'progress-bar bg-danger';
+                    totalPercentageSpan.className = 'text-danger';
+                    remainingPercentageSpan.className = 'text-danger';
+                    submitBtn.disabled = true;
+                } else if (total > 0) {
+                    progressBar.className = 'progress-bar bg-warning';
+                    totalPercentageSpan.className = 'text-warning';
+                    remainingPercentageSpan.className = 'text-warning';
+                    submitBtn.disabled = total === 0; // Allow 0% for no allocation
+                } else {
+                    progressBar.className = 'progress-bar bg-secondary';
+                    totalPercentageSpan.className = 'text-secondary';
+                    remainingPercentageSpan.className = 'text-secondary';
+                    submitBtn.disabled = false; // Allow 0% allocation
+                }
+            }
+
+            // Add event listeners
+            allocationInputs.forEach(input => {
+                input.addEventListener('input', updateAllocationSummary);
+                input.addEventListener('change', updateAllocationSummary);
+            });
+
+            // Form validation
+            form.addEventListener('submit', function(e) {
+                let total = 0;
+                allocationInputs.forEach(input => {
+                    total += parseFloat(input.value) || 0;
+                });
+
+                if (total > 0 && Math.abs(total - 100) > 0.01) {
+                    e.preventDefault();
+                    alert('Tổng tỷ lệ phân bổ phải bằng 100%. Hiện tại: ' + total.toFixed(2) + '%');
+                    return false;
+                }
+            });
+
+            // Initial calculation
+            updateAllocationSummary();
+        });
+    </script>
+{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .card {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        }
+        
+        .allocation-input:focus {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+        
+        .progress {
+            background-color: #e9ecef;
+        }
+        
+        .alert {
+            border: none;
+            border-radius: 0.5rem;
+        }
+        
+        .form-text {
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+    </style>
+{% endblock %}

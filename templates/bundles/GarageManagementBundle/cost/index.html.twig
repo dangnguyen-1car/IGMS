@@ -1,0 +1,125 @@
+{% extends 'base.html.twig' %}
+{% import "macros/widgets.html.twig" as widgets %}
+
+{% block page_title %}Quản lý Chi phí{% endblock %}
+{% block page_search %}{% endblock %}
+
+{% block main %}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">
+                <i class="fas fa-money-bill-wave"></i>
+                Danh sách Chi phí
+            </h3>
+            <div class="card-actions">
+                <a href="{{ path('garage_costs_new') }}" class="btn btn-success">
+                    <i class="fas fa-plus"></i>
+                    Thêm Chi phí mới
+                </a>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Tên Chi phí</th>
+                        <th class="d-none d-md-table-cell">Danh mục</th>
+                        <th class="d-none d-sm-table-cell">Số tiền</th>
+                        <th class="d-none d-sm-table-cell">Trạng thái</th>
+                        <th class="d-none d-md-table-cell">Ngày ghi nhận</th>
+                        <th class="d-none d-md-table-cell">Phân bổ</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for costItem in costItems %}
+                        <tr>
+                            <td>
+                                <strong>{{ costItem.name }}</strong>
+                                <div class="d-md-none small text-muted">
+                                    {{ costItem.entryDate|date('d/m/Y') }} - 
+                                    {{ costItem.amount|number_format(0, '.', ',') }} VNĐ
+                                </div>
+                            </td>
+                            <td class="d-none d-md-table-cell">
+                                {% if costItem.category in categories|keys %}
+                                    <span class="badge bg-info">{{ categories[costItem.category] }}</span>
+                                {% else %}
+                                    {{ costItem.category }}
+                                {% endif %}
+                            </td>
+                            <td class="d-none d-sm-table-cell">
+                                {{ costItem.amount|number_format(0, '.', ',') }} VNĐ
+                            </td>
+                            <td class="d-none d-sm-table-cell">
+                                {% if costItem.status == 'forecast' %}
+                                    <span class="badge bg-warning">{{ statuses[costItem.status] }}</span>
+                                {% else %}
+                                    <span class="badge bg-success">{{ statuses[costItem.status] }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="d-none d-md-table-cell">
+                                {{ costItem.entryDate|date('d/m/Y') }}
+                            </td>
+                            <td class="d-none d-md-table-cell">
+                                {% set allocations = costItem.allocations %}
+                                {% if allocations|length > 0 %}
+                                    <div class="d-flex flex-wrap gap-1">
+                                        {% for allocation in allocations %}
+                                            <span class="badge bg-secondary" title="{{ allocation.team.name }}: {{ allocation.percentage }}%">
+                                                {{ allocation.team.name|slice(0, 3) }}: {{ allocation.percentage }}%
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">Chưa phân bổ</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ path('garage_costs_edit', {'id': costItem.id}) }}" 
+                                       class="btn btn-sm btn-outline-primary" title="Chỉnh sửa">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form method="post" 
+                                          action="{{ path('garage_costs_delete', {'id': costItem.id}) }}" 
+                                          style="display: inline;"
+                                          onsubmit="return confirm('Bạn có chắc chắn muốn xóa chi phí này?')">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete' ~ costItem.id) }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-3x mb-3"></i><br>
+                                Chưa có chi phí nào được ghi nhận.<br>
+                                <a href="{{ path('garage_costs_new') }}" class="btn btn-success mt-2">
+                                    <i class="fas fa-plus"></i> Thêm Chi phí đầu tiên
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <style>
+        .badge {
+            font-size: 0.75em;
+        }
+        .gap-1 > * {
+            margin-right: 0.25rem;
+            margin-bottom: 0.25rem;
+        }
+    </style>
+{% endblock %}

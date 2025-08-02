@@ -25,7 +25,7 @@ final class Constants
     /**
      * The software name
      */
-    public const SOFTWARE = 'Kimai';
+    public const SOFTWARE = '1CAR-IGMS';
     /**
      * Used in multiple views
      */

@@ -125,8 +125,8 @@ class GarageReportService
             'total_indirect_costs' => $totalIndirectCosts,
             'total_net_profit' => $totalNetProfit,
             'total_projects_count' => $projectsCount,
-            'members_count' => $teamMembers->count(),
-            'average_net_profit_per_member' => $teamMembers->count() > 0 ? $totalNetProfit / $teamMembers->count() : 0,
+            'members_count' => count($teamMembers),
+            'average_net_profit_per_member' => count($teamMembers) > 0 ? $totalNetProfit / count($teamMembers) : 0,
             'average_net_profit_per_project' => $projectsCount > 0 ? $totalNetProfit / $projectsCount : 0,
         ];
     }
@@ -206,7 +206,7 @@ class GarageReportService
             $teamAllocatedCosts = $this->getTeamAllocatedCosts($team, $from, $to);
             
             // Chia đều cho số thành viên trong team
-            $teamMembersCount = $team->getUsers()->count();
+            $teamMembersCount = count($team->getUsers());
             if ($teamMembersCount > 0) {
                 $totalPersonalCost += $teamAllocatedCosts / $teamMembersCount;
             }
